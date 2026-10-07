@@ -10,7 +10,6 @@
 .Trashes
 .AppleDB
 .AppleDesktop
-.apdisk
 
 # Files that might appear in the root volume
 .DocumentRevisions-V100
@@ -18,7 +17,6 @@
 .VolumeIcon.icns
 .com.apple.timemachine.donotpresent
 .com.apple.timemachine.supported
-
 
 # Logs
 logs
@@ -50,9 +48,6 @@ node_modules/
 # Optional REPL history
 .node_repl_history
 
-# Output of 'npm pack'
-*.tgz
-
 # Yarn Integrity file
 .yarn-integrity
 
@@ -61,14 +56,15 @@ node_modules/
 .env.*
 !.env.example
 
-# Firebase cache directory
-.firebase/
-
 # TernJS port file
 .tern-port
 
 # Stores VSCode versions used for testing VSCode extensions
 .vscode-test
+
+# Ignore the VS Code dir and files
+.vscode/
+*.code-workspace
 
 # pnpm
 .pnpm-store
