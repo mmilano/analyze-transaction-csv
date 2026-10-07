@@ -1,23 +1,23 @@
 // data
 // for the actions...
 
-//  one comprehensive list of all possible action keys
-//  and the 'group' for what category that activity is
+// one comprehensive list of all possible action keys
+// and the 'group' for what category that activity is
+// format: [action, category]
 //
-// group possibilities:
+// category possibilities:
 // discard: discard this transaction
-// other:   a transaction that is some kind of tranaction that affects the account balance, but isnt an option transaction
+// other:   a transaction that is a tranaction that affects the account balance, but isnt an option transaction
 // option:  an option transaction
 
 // note
 // keys are all lowercase.
-// need to conveert values from files in order to check
+// need to convert value from file in order to check
 
 const actionCategoryMap = new Map([
 
 	["expired", "discard"],
 	["journaled shares", "discard"],
-
 
     ["assigned", "other"],
     ["bank interest", "other"],
@@ -26,20 +26,20 @@ const actionCategoryMap = new Map([
     ["cd deposit adj", "other"],
     ["cd deposit funds", "other"],
     ["cd interest", "other"],
-    ["Cancel Buy", "other"],
+    ["cancel buy", "other"],
     ["cash dividend", "other"],
     ["cash in lieu", "other"],
     ["cash liquidation", "other"],
     ["credit interest", "other"],
-    ["CXL Redemption Adj", "other"],
+    ["cxl redemption adj", "other"],
     ["div adjustment", "other"],
     ["final cash liquid", "other"],
     ["final cash liquid adj", "other"],
     ["full redemption", "other"],
     ["full redemption adj", "other"],
     ["funds received", "other"],
-    ["Interest Adj", "other"],
-    ["Internal Transfer", "other"],
+    ["interest adj", "other"],
+    ["internal transfer", "other"],
 
     ["journal", "other"],
     ["long term cap gain", "other"],
