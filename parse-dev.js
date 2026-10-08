@@ -319,9 +319,17 @@ const getColumnHeaders = (row) => {
     return obj;
 };
 
+const transactionAmountFormat = new Intl.NumberFormat({
+    minimumFractionDigits: 2,
+    trailingZeroDisplay: "auto",
+});
 
+/**
+ * does the number passed in have any decimals?
+ * @param {number} num
+ * @returns {boolean}
+ */
 const hasDecimal = (num) => !Number.isInteger(num);
-
 
 /**
  * determine if the transaction has some value for "amount"
@@ -349,9 +357,7 @@ const OptionTransactionSymbolRegex = /[A-Za-z]+\s\d\d\/\d\d\/\d\d\d\d\s[0-9]*\.[
  * @param {*} optionSymbol
  * @returns
  */
-const isOptionTransaction = (optionSymbol) => {
-    return OptionTransactionSymbolRegex.test(optionSymbol);
-}
+const isOptionTransaction = (optionSymbol) => OptionTransactionSymbolRegex.test(optionSymbol);
 
 /**
  * given a stock/equity symbol,
@@ -360,25 +366,34 @@ const isOptionTransaction = (optionSymbol) => {
  * @param {string} stockSymbol
  * @returns {boolean}
  */
-const isIndexTransaction = (stockSymbol) => {
-    return indexSymbols.has(stockSymbol);
-}
+const isIndexTransaction = (stockSymbol) => indexSymbols.has(stockSymbol);
 
-// given a type from an option symbol - P or C -
-// is it a PUT or a CALL?
+/**
+ * given a type from an option symbol - P or C -
+ * is it a PUT or a CALL?
+ * @param {string} type
+ * @returns {string}
+ */
 const getOptionType = (type) => optionTypeMap.get(type);
 
-// given the index symbol from the option,
-// lookup the base symbol for that index
-// ie. the 3-letter index
+/**
+ * given the symbol from the option,
+ * lookup the base symbol for that index
+ * ie. the 3-letter index
+ * @param {string} symbol
+ * @returns {string}
+ */
 const getIndexBaseSymbol = (symbol) => indexSymbolsBase.get(symbol);
 
-// convert a date string into a Date object
-// existing format of the dates in SCHWAB CSV are:
-// simple: MM/DD/YYYY
-// not simple: "10/16/2025 as of 10/15/2025"?
-// which date to use for the non-simple? first...
-
+/**
+ * convert a date string into a Date object.
+ * existing format of the dates in SCHWAB CSV are:
+ * simple:     MM/DD/YYYY
+ * not simple: "10/16/2025 as of 10/15/2025"
+ * which date to use for the non-simple? first
+ * @param {string} dateString
+ * @returns {Date}
+ */
 const dateFromDateString = (dateString) => {
 
     if (dateString.includes(" ")) {
@@ -398,13 +413,6 @@ const dateFromDateString = (dateString) => {
  */
 const getTransactionDate = (row) => {
     const theDate = row["Date"];
-
-    // if (theDate.includes(" ")) {
-    //     // split by the spaces,
-    //     // and take the first/more recent date
-    //     // (avoiding the "as of mm/dd/yyyy" portion)
-    //     theDate = theDate.split(" ")[0];
-    // }
     return dateFromDateString(theDate);
 }
 
@@ -415,13 +423,6 @@ const getTransactionDate = (row) => {
  */
 const getExpirationDate = (row) => {
     const theDate = row["expiration"];
-
-    // if (theDate.includes(" ")) {
-    //     // split by the spaces,
-    //     // and take the first/more recent date
-    //     // (avoiding the "as of mm/dd/yyyy" portion)
-    //     theDate = theDateString.split(" ")[0];
-    // }
     return dateFromDateString(theDate);
 }
 
@@ -441,17 +442,17 @@ const regexThreeDecimalPlaces = /\.\d{3,}/;
 
 /**
  * given a numerical input (eg. a sum of currency values), return a fixed decimal
- * @param {number} s - a floating point number
+ * @param {number} n - a floating point number
  * @returns {number} fixed decimal
  */
-const sumRounded = (s) => s.toFixed(2);
+const sumRounded = (n) => n.toFixed(2);
 
 /**
  * check if the number string has more than 2 decimal places
  * note: cannot use float value because some values get very very small rounding errors
  * in the 10 or 15th decimal place when converting to float
  * e.g. 2.45 = 2.4500000000003
- * this is an interal javascript problem
+ * this is an internal javascript problem
  *
  * @param {string} numberString - a number as string
  * @returns {boolean}
@@ -464,9 +465,7 @@ const hasMoreThanTwoDecimals = (numberString) => regexThreeDecimalPlaces.test(nu
  * @param {object} row - a transaction row (direct from parsing, now as internal object)
  * @returns {boolean}
  */
-const isTransactionPriceFractional = (row) => {
-    return hasMoreThanTwoDecimals(row["Price"]);
-}
+const isTransactionPriceFractional = (row) => hasMoreThanTwoDecimals(row["Price"]);
 
 
 function flattenObjToValues(obj) {
@@ -567,9 +566,7 @@ const constructBlankRow = (headers) => {
  * @param {integer} n - number of rows wanted
  * @returns {array} array with N number of blank rows
  */
-const makeBlankRows = (n=1) => {
-    return Array(n).fill({row: blankRow});
-}
+const makeBlankRows = (n=1) => Array(n).fill({row: blankRow});
 
 
 /**
@@ -613,7 +610,6 @@ const isTransactionAPair = (transaction) => {
     return !!transaction.metadata.pairID;
 }
 
-
 /**
  * calculate sum of "amount" column for array of transactions passed in
  *
@@ -648,7 +644,8 @@ const getFormattedDate = (d) => {
  * @param {string} date - formatted date
  * @param {number} sum - a sum value
  */
-const displayFormattedSum = ({label, num, color="green" }) => {
+const displayFormattedSum = ({label, num, color="green"}) => {
+    // const displayNum = num;
    const displayNum = hasDecimal(num) ? (num > 0 ? " " : "") + sumRounded(num) : num;
     // console.log (colorize.green(label + ": " + "\t" + displayNum));
     console.log (colorize[color](label + ": " + "\t" + displayNum));
@@ -665,7 +662,6 @@ function calculateDailySums (transactions) {
 
     // const expirationDateSums = {};
     const expirationDateSums = new Map();
-
 
     // organize by exp date
     for (const transaction of transactions) {
@@ -690,7 +686,7 @@ function calculateDailySums (transactions) {
         expirationDateSums.set(formattedDate, expirationDateSums.get(formattedDate) + convertAmountStringToNumber(amount));
     }
 
-    // round off the sums
+    // round off the amounts
     for (const [date, sum] of Object.entries(expirationDateSums)) {
         expirationDateSums[date] = Number(sumRounded(expirationDateSums[date]));
     }
@@ -708,7 +704,7 @@ function calculateDailySums (transactions) {
     );
 
     console.log ();
-    console.log ("by DATE:");
+    console.log ("by EXPIRATION DATE:");
     for (const [date, sum] of Object.entries(sortedExpirationDates)) {
         displayFormattedSum({label: date, num: sum});
         // console.log (colorize.green(date + ": " + "\t" + (sum > 0 ? " " : "") + sumRounded(sum)));
@@ -717,12 +713,10 @@ function calculateDailySums (transactions) {
 }
 
 
-
 function organizeTransactionsbyDate (rows) {
 
     // const transactionDatesGroups = {};
     const transactionDatesGroups = new Map();
-
 
     rows.forEach((row) => {
         // determine transaction date as date object
@@ -748,7 +742,7 @@ function organizeTransactionsbyDate (rows) {
     });
 
     console.log ();
-    console.log (colorize.cyan("by EXPIRATION DATE:"));
+    console.log (colorize.cyan("by TRANSACTION DATE:"));
     // for (const [date, rows] of Object.entries(transactionDatesGroups)) {
     //     displayFormattedSum({label: date, num: rows.length, color: "cyan"});
     // }
@@ -759,6 +753,70 @@ function organizeTransactionsbyDate (rows) {
     return transactionDatesGroups;
 }
 
+
+// within a group of options,
+// sequence them by expiration date
+
+function sequenceTransactionsByExpiration () {
+    for (const index of Object.keys(indexGroups)) {
+
+        console.log(index,"...");
+        // console.log(indexGroups[index]);
+        const groupDateCollection = {};
+
+        const expirationDates = new Set();
+
+        const group = indexGroups[index];
+        if (group.length === 0) {
+            continue;
+        }
+
+        for (const transaction of group) {
+            const eDateString = transaction.metadata?.transactionSymbol.expirationDate;
+            const eDateTime = dateFromDateString(eDateString).getTime();
+
+            // groupDateCollection will be an object breaking down group
+            // by keys that
+            // are the expirationDates of the transactions in group
+            if (eDateTime) {
+                if (!groupDateCollection[eDateTime]) {
+                    groupDateCollection[eDateTime] = [];
+                }
+                groupDateCollection[eDateTime].push(transaction);
+                // add to Set; Sets automatically ignore duplicates
+                expirationDates.add(eDateTime);
+            }
+        }
+
+        // sort the expirationDate keys, oldest to largest
+        const sortedDateTimes = new Set([...expirationDates].sort((a, b) => a - b));
+
+        // const reGroup = flattenObjToValues(groupDateCollection);
+        const sortedTransactions = [];
+        for (const dateTime of sortedDateTimes) {
+            sortedTransactions.push(...groupDateCollection[dateTime]);
+        }
+
+        // for (const key of Object.keys(groupDateCollection)) {
+        //     const value = groupDateCollection[key];
+
+        //     // Check if the value is a nested object (and not null or an array)
+        //     // if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+        //     //   result.push(...flattenObjToValues(value)); // Recursively flatten and spread
+        //     // } else {
+        //     //   result.push(value); // Push the primitive value
+        //     // }
+
+        //     result.push(...value);
+        // }
+        // console.log (result);
+        // console.log (sortedTransactions);
+
+    }
+}
+
+
+
 /**
  * categorizes, and groups a file of transactions (from the CSV)
  * by the "action" column
@@ -767,7 +825,6 @@ function organizeTransactionsbyDate (rows) {
  * @returns {array} sortedRows - all the transactions of interest
  */
 export function processTransactions(rows) {
-
 
     // holding object organized by categories
     // pre-defined structure - prevents errors if there are no rows for that category
@@ -779,7 +836,7 @@ export function processTransactions(rows) {
     };
 
     // make a reference of actions for two rows that might be a pair
-    const actionsForPair = ["buy", "sell"].sort().join(",");
+    const actionDefiningPair = ["buy", "sell"].sort().join(",");
 
     // process each row
     rows.forEach((row) => {
@@ -790,7 +847,7 @@ export function processTransactions(rows) {
         const actionCategory = actionCategoryMap.get(action) || categoryFallback;
 
         // if it is a discard category,
-        // dont do anything and just move on,
+        // dont do anything and just move on
         // essentially tossing the row out
         if (actionCategory === "discard") {
             return;
@@ -1022,7 +1079,7 @@ export function processTransactions(rows) {
                 // check if actions match the actions-pair
                 const currentPair = [baseActionCurrentRow, baseActionNextRow].sort().join(",");
 
-                if (currentPair != actionsForPair) {
+                if (currentPair != actionDefiningPair) {
                     // console.log ("not sure what we have here...");
                     // debugger;
 
@@ -1202,67 +1259,6 @@ export function processTransactions(rows) {
         indexGroups[indexSymbol].push(...groupedRows);
     }
 
-    // within a group of options,
-    // sequence them by expiration date
-
-    function sequenceTransactionsByExpiration () {
-        for (const index of Object.keys(indexGroups)) {
-
-            console.log(index,"...");
-            // console.log(indexGroups[index]);
-            const groupDateCollection = {};
-
-            const expirationDates = new Set();
-
-            const group = indexGroups[index];
-            if (group.length === 0) {
-                continue;
-            }
-
-            for (const transaction of group) {
-                const eDateString = transaction.metadata?.transactionSymbol.expirationDate;
-                const eDateTime = dateFromDateString(eDateString).getTime();
-
-                // groupDateCollection will be an object breaking down group
-                // by keys that
-                // are the expirationDates of the transactions in group
-                if (eDateTime) {
-                    if (!groupDateCollection[eDateTime]) {
-                        groupDateCollection[eDateTime] = [];
-                    }
-                    groupDateCollection[eDateTime].push(transaction);
-                    // add to Set; Sets automatically ignore duplicates
-                    expirationDates.add(eDateTime);
-                }
-            }
-
-            // sort the expirationDate keys, oldest to largest
-            const sortedDateTimes = new Set([...expirationDates].sort((a, b) => a - b));
-
-            // const reGroup = flattenObjToValues(groupDateCollection);
-            const sortedTransactions = [];
-            for (const dateTime of sortedDateTimes) {
-                sortedTransactions.push(...groupDateCollection[dateTime]);
-            }
-
-            // for (const key of Object.keys(groupDateCollection)) {
-            //     const value = groupDateCollection[key];
-
-            //     // Check if the value is a nested object (and not null or an array)
-            //     // if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-            //     //   result.push(...flattenObjToValues(value)); // Recursively flatten and spread
-            //     // } else {
-            //     //   result.push(value); // Push the primitive value
-            //     // }
-
-            //     result.push(...value);
-            // }
-            // console.log (result);
-            // console.log (sortedTransactions);
-
-        }
-    }
-
 
     // put all the index options back together
     const sortedIndexOptions = [];
@@ -1288,12 +1284,9 @@ export function processTransactions(rows) {
 
     // now all the "option" transactions are processed and grouped
     // calculate the sum of the amounts
-
-
-    const sum = calculateTransactionsSum(groupedRows["option"]);
     const sumByDay = calculateDailySums(groupedRows["option"]);
 
-    // console.log ("\x1b[32mSUM - OPTIONS:" + "\t" + sumRounded(sum) + "\x1b[0m");
+    const sum = calculateTransactionsSum(groupedRows["option"]);
     displayFormattedSum( {label: "SUM - OPTIONS", num: sum});
 
     const sortedRows = [];
@@ -1334,13 +1327,11 @@ export function processTransactions(rows) {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-
 // get the input filename from command line arguments
-// const filename = process.argv[2];
 const {filename} = parseArguments();
+
 // get the file contents
 const csvFileContents = await getFileContent(filename);
-
 // parse the raw file data
 const parsedCSV = parseCSVFile(csvFileContents);
 
@@ -1348,14 +1339,15 @@ const parsedCSV = parseCSVFile(csvFileContents);
 const csvData = parsedCSV.data;
 
 // the usual transaction file is in reverse chronological order -
-// so reverse them all so they are in chronological order
+// (top: newest, bottom: oldest)
+// so reverse them all so they are in chronological order top to bottom
 const csvDataChronological = csvData.toReversed();
 
 // extract the headers for later use
 const dataColumnHeaders = getColumnHeaders(csvData[0]);
 const blankRow = constructBlankRow(dataColumnHeaders);
 
-
+// organize/group transactions by transaction date
 const transactionByDate = organizeTransactionsbyDate(csvDataChronological);
 
 // process the transactions, add necessary metadata, and group them,
