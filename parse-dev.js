@@ -687,28 +687,30 @@ function calculateDailySums (transactions) {
     }
 
     // round off the amounts
-    for (const [date, sum] of Object.entries(expirationDateSums)) {
-        expirationDateSums[date] = Number(sumRounded(expirationDateSums[date]));
-    }
-
+    // for (const [date, sum] of Object.entries(expirationDateSums)) {
+    //     expirationDateSums[date] = Number(sumRounded(expirationDateSums[date]));
+    // }
     for (const [date, value] of expirationDateSums) {
-        // console.log(`${key} = ${value}`);
         const n = Number(sumRounded(expirationDateSums.get(date)));
         expirationDateSums.set(date, n);
     }
 
-
     // sort the sums by date
-    const sortedExpirationDates = Object.fromEntries(
-        Object.entries(expirationDateSums).sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
-    );
+    // const sortedExpirationDates = Object.fromEntries(
+    //     Object.entries(expirationDateSums).sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
+    // );
+    const sortedDateSums = new Map([...expirationDateSums].sort((a, b) => a[0].localeCompare(b[0])));
 
     console.log ();
     console.log ("by EXPIRATION DATE:");
-    for (const [date, sum] of Object.entries(sortedExpirationDates)) {
-        displayFormattedSum({label: date, num: sum});
-        // console.log (colorize.green(date + ": " + "\t" + (sum > 0 ? " " : "") + sumRounded(sum)));
+    // for (const [date, sum] of Object.entries(sortedExpirationDates)) {
+    //     displayFormattedSum({label: date, num: sum});
+    //     // console.log (colorize.green(date + ": " + "\t" + (sum > 0 ? " " : "") + sumRounded(sum)));
+    // }
+    for (const [date, value] of sortedDateSums) {
+        displayFormattedSum({label: date, num: value});
     }
+
     console.log ();
 }
 
