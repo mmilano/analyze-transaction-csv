@@ -319,10 +319,30 @@ const getColumnHeaders = (row) => {
     return obj;
 };
 
-const transactionAmountFormat = new Intl.NumberFormat({
+
+/**
+ * use intl.numberformat to set display format of transaction amounts
+ * so that they have 2 ecimal places, even when they are .00
+ */
+const amountFormat = new Intl.NumberFormat("en", {
     minimumFractionDigits: 2,
     trailingZeroDisplay: "auto",
 });
+
+/**
+ * format numbers as amounts
+ * @param {number} n
+ * @returns {number}
+ */
+const transactionAmountFormat = (n) => amountFormat.format(n);
+
+/**
+ * format numbers as quantities
+ * @param {number} n
+ * @returns {number}
+ */
+const transactionQuantityFormat = (n) => {}
+
 
 /**
  * does the number passed in have any decimals?
@@ -395,11 +415,10 @@ const getIndexBaseSymbol = (symbol) => indexSymbolsBase.get(symbol);
  * @returns {Date}
  */
 const dateFromDateString = (dateString) => {
-
     if (dateString.includes(" ")) {
         // split by the spaces,
         // and take the first/more recent date
-        // (avoiding the "as of mm/dd/yyyy" portion)
+        // (avoiding any "as of mm/dd/yyyy" portion)
         dateString = dateString.split(" ")[0];
     }
     const [month, day, year] = dateString.split("/");
@@ -425,7 +444,6 @@ const getExpirationDate = (row) => {
     const theDate = row["expiration"];
     return dateFromDateString(theDate);
 }
-
 
 /**
  * regex pattern to detect any characters OTHER than digits and negative sign in a string
@@ -492,7 +510,7 @@ function flattenObjToValues(obj) {
 // If row is an option, then symbol structure will be:
 // [root-symbol] [space] [expiration-date] [space] [strike-price] [space] [type]
 const symbolKeys = ["root", "expiration", "strikePrice", "type"];
-const symbolDelimiter = " ";
+const symbolDelimiter = " ";  // [space]
 
 /**
  * with an option's "SYMBOL" string from the CSV, parse out the constituent elements
@@ -568,7 +586,6 @@ const constructBlankRow = (headers) => {
  */
 const makeBlankRows = (n=1) => Array(n).fill({row: blankRow});
 
-
 /**
  * determine if the transaction in given row is a BUY or a SELL
  *
@@ -626,6 +643,11 @@ const calculateTransactionsSum = (transactions) => {
     return sum;
 }
 
+/**
+ * replace/remove any nno-number characters in a number
+ * @param {string} amount
+ * @returns {number} the amount as a number
+ */
 const convertAmountStringToNumber = (amount) => {
     return Number(amount.replace(regexPrice, ""));
 }
@@ -634,27 +656,55 @@ const getFormattedDate = (d) => {
     const yyyy = d.getFullYear();
     const mm = String(d.getMonth() + 1).padStart(2, '0'); // Months are 0-11
     const dd = String(d.getDate()).padStart(2, '0');
-    const formattedDate = `${mm}-${dd}-${yyyy}`;
+    const formattedDateString = `${mm}-${dd}-${yyyy}`;
 
-    return formattedDate;
+    return formattedDateString;
 };
 
 /**
- * displaying a formatted sum to console
+ * displaying a formatted label + number to console
+ * with layout=
+ * [LABEL]:  [NUMBER]
  * @param {string} date - formatted date
  * @param {number} sum - a sum value
+ * @param {string} color - optional. one of the available text colors supported by colorize{}
  */
 const displayFormattedSum = ({label, num, color="green"}) => {
-    // const displayNum = num;
-   const displayNum = hasDecimal(num) ? (num > 0 ? " " : "") + sumRounded(num) : num;
-    // console.log (colorize.green(label + ": " + "\t" + displayNum));
+    const displayNum = hasDecimal(num) ? (num > 0 ? " " : "") + sumRounded(num) : num;
     console.log (colorize[color](label + ": " + "\t" + displayNum));
+}
+
+
+/**
+ * display a tabulated label and quantity
+ * @param {string} label
+ * @param {number} num
+ * @param {string} color - optional. one of the available text colors supported by colorize{}
+ */
+const displayFormattedQuantity = ({label, num, color="green"}) => {
+    const displayNum = hasDecimal(num) ? (num > 0 ? " " : "") + sumRounded(num) : num;
+    const displayString = label + ": " + "\t" + displayNum;
+    console.log (colorize[color](displayString));
+}
+
+/**
+ * display a tabulated label and amount
+ * @param {string} label
+ * @param {number} num
+ * @param {string} color - optional. one of the available text colors supported by colorize{}
+ */
+const displayLabeledAmount = ({label, num, color="green"}) => {
+    const formattedNum = transactionAmountFormat(num);
+    // const displayNum = hasDecimal(num) ? (num > 0 ? " " : "") + num : num;
+    const displayNum = num > 0 ? " " + formattedNum : formattedNum;
+    const displayString = label + ": " + "\t" + displayNum;
+    console.log (colorize[color](displayString))
 }
 
 /**
  * go thru each transaction,
  * group by expiration date,
- * then sum up each expiration date
+ * then calculate each expiration date's total
  *
  * @param {array of object} transactions
  */
@@ -691,7 +741,7 @@ function calculateDailySums (transactions) {
     //     expirationDateSums[date] = Number(sumRounded(expirationDateSums[date]));
     // }
     for (const [date, value] of expirationDateSums) {
-        const n = Number(sumRounded(expirationDateSums.get(date)));
+        const n = Number(sumRounded(value));
         expirationDateSums.set(date, n);
     }
 
@@ -701,20 +751,26 @@ function calculateDailySums (transactions) {
     // );
     const sortedDateSums = new Map([...expirationDateSums].sort((a, b) => a[0].localeCompare(b[0])));
 
+    // display results
     console.log ();
-    console.log ("by EXPIRATION DATE:");
-    // for (const [date, sum] of Object.entries(sortedExpirationDates)) {
-    //     displayFormattedSum({label: date, num: sum});
-    //     // console.log (colorize.green(date + ": " + "\t" + (sum > 0 ? " " : "") + sumRounded(sum)));
-    // }
+    console.log ("amounts:");
+    console.log ("by EXPIRATION DATE of the option:");
     for (const [date, value] of sortedDateSums) {
-        displayFormattedSum({label: date, num: value});
+        displayLabeledAmount({
+            label: date,
+            num: value
+        });
     }
-
     console.log ();
 }
 
 
+/**
+ * go through all the transactions
+ * and group them by transaction date
+ * @param {array} rows - all the transactions
+ * @returns {Map} transactionDatesGroups - a map where keys= transaction dates, and values are [array] of transactions
+ */
 function organizeTransactionsbyDate (rows) {
 
     // const transactionDatesGroups = {};
@@ -743,15 +799,19 @@ function organizeTransactionsbyDate (rows) {
 
     });
 
+    // display results
     console.log ();
-    console.log (colorize.cyan("by TRANSACTION DATE:"));
-    // for (const [date, rows] of Object.entries(transactionDatesGroups)) {
-    //     displayFormattedSum({label: date, num: rows.length, color: "cyan"});
-    // }
+    console.log ("quantities:");
+    console.log ("by TRANSACTION DATE:");
     for (const [date, rows] of transactionDatesGroups) {
-        displayFormattedSum({label: date, num: rows.length, color: "cyan"});
+        displayFormattedQuantity({
+            label: date,
+            num: rows.length,
+            color: "cyan"
+        });
     }
     console.log ();
+
     return transactionDatesGroups;
 }
 
