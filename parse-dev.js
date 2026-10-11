@@ -701,6 +701,7 @@ const displayLabeledAmount = ({label, num, color="green"}) => {
     console.log (colorize[color](displayString))
 }
 
+
 /**
  * go thru each transaction,
  * group by expiration date,
@@ -774,7 +775,7 @@ function calculateDailySums (transactions) {
 function organizeTransactionsbyDate (rows) {
 
     // const transactionDatesGroups = {};
-    const transactionDatesGroups = new Map();
+    const dateGroups = new Map();
 
     rows.forEach((row) => {
         // determine transaction date as date object
@@ -787,23 +788,17 @@ function organizeTransactionsbyDate (rows) {
         // as if each date was its own file
         const formattedDate = getFormattedDate(transactionDate);
 
-        // if (!transactionDatesGroups[formattedDate]) {
-            // transactionDatesGroups[formattedDate] = [];
-        // }
-        // transactionDatesGroups[formattedDate].push(row);
-
-        if (!transactionDatesGroups.has(formattedDate)) {
-            transactionDatesGroups.set(formattedDate, []);
+        if (!dateGroups.has(formattedDate)) {
+            dateGroups.set(formattedDate, []);
         }
-        transactionDatesGroups.get(formattedDate).push(row);
-
+        dateGroups.get(formattedDate).push(row);
     });
 
     // display results
     console.log ();
     console.log ("quantities:");
     console.log ("by TRANSACTION DATE:");
-    for (const [date, rows] of transactionDatesGroups) {
+    for (const [date, rows] of dateGroups) {
         displayFormattedQuantity({
             label: date,
             num: rows.length,
@@ -812,7 +807,7 @@ function organizeTransactionsbyDate (rows) {
     }
     console.log ();
 
-    return transactionDatesGroups;
+    return dateGroups;
 }
 
 
@@ -886,7 +881,7 @@ function sequenceTransactionsByExpiration () {
  * @param {object} parsedData - all of the raw parsed data from the file
  * @returns {array} sortedRows - all the transactions of interest
  */
-export function processTransactions(rows) {
+function processTransactions(rows) {
 
     // holding object organized by categories
     // pre-defined structure - prevents errors if there are no rows for that category
@@ -1056,23 +1051,23 @@ export function processTransactions(rows) {
 
     const optionRows = groupedRows["option"];
 
-
     // go thru all the rows and group pairs
     for (let i = 0; i < optionRows.length; i++) {
 
-        // this row
+        // current row
         const transaction = optionRows[i];
         const rowSymbol = transaction.metadata.transactionSymbol.root;
-        // and the next row
+        // next row
         const nextTransaction = optionRows[i+1];
         const nextRowSymbol = nextTransaction?.metadata.transactionSymbol.root;
 
-        // CASE: end of list
+        // CHECK: end of list
         // if nextRow is undefined, then probably at end of list
         if (!nextTransaction) {
             // if thisRow is the last line, and it is hasnt been paired with the line before,
             // then it seems this must be a singleton.
-            // so categorize it in either the stock group or the index group
+
+            // is it an index or a stock?
             if (!transaction.metadata.isIndex) {
                 stockOptions.push(transaction);
             } else {
@@ -1082,7 +1077,7 @@ export function processTransactions(rows) {
             continue;
         }
 
-        // CASE: symbol NOT EQUAL next.symbol
+        // CHECK: symbols not equal?
         // if the root symbol of this row is != the root symbol of the next row,
         // then this row is probably a singleton.
         // so categorize it in either the stock group or the index group
@@ -1101,18 +1096,21 @@ export function processTransactions(rows) {
             continue;
         }
 
+        // --> SYMBOLS ARE EQUAL...
+        // if (rowSymbol === nextRowSymbol) {
+
+        // CHECK: root symbols
         // if root symbol of this row === the root symbol of the next row,
         // then this could be a pair.
-        if (rowSymbol === nextRowSymbol) {
 
             const baseActionCurrentRow = transaction.metadata.baseAction;
             const baseActionNextRow = nextTransaction.metadata.baseAction;
 
-            // are both actions the same base action?
+            // CHECK: are both actions the same base action?
             if (baseActionCurrentRow === baseActionNextRow) {
                 // not a pair because both base actions are the same
-                // so...
-                // put it in a group as a single transaction
+                // so...save current transaction as a single transaction
+                // and move on
 
                 // is it an index or a stock?
                 if (!transaction.metadata.isIndex) {
@@ -1125,65 +1123,67 @@ export function processTransactions(rows) {
                 continue;
             };
 
-            // since we checked if they are equal already,
-            // then to get here they must not be equal
+            // --> actions are different
 
             // CHECK: if actions are BUY + SELL
-            //
-            // if actions are BUY and SELL, then we may have a pair...
-            // if (baseActionRow != baseActionNextRow) {
-                // a pair = one buy and one sell
+            // if actions are both BUY and SELL, then we may have a pair...
 
-                // if (config.debug) {
-                //     console.dir(transaction);
-                //     console.dir(nextTransaction);
-                // }
-                // check if actions match the actions-pair
-                const currentPair = [baseActionCurrentRow, baseActionNextRow].sort().join(",");
+            // make a string of the actions-pair
+            const currentPair = [baseActionCurrentRow, baseActionNextRow].sort().join(",");
 
-                if (currentPair != actionDefiningPair) {
-                    // console.log ("not sure what we have here...");
-                    // debugger;
+            if (currentPair != actionDefiningPair) {
+                // not a pair of actions.
+                // e.g. both actions are the same
+                // so: save the transaction and move on
 
-                    // store the transaction and move on
+                // console.log ("not sure what we have here...");
+
+                // is it an index or a stock?
+                if (!transaction.metadata.isIndex ) {
+                    stockOptions.push(transaction);
+                } else {
+                    indexOptions.push(transaction);
+                }
+
+                continue;
+            }
+
+            // --> there is both a BUY and a SELL
+
+
+                // CHECK: if both option types are the same:
+                // both should be PUT or CALL
+                if (transaction.metadata.optionType != nextTransaction.metadata.optionType) {
+                    // TYPES do not match
+                    // so: save the transaction and move on
+
+                    // if (config.debug) {
+                    //     console.info (" not a pair: TYPE does not match");
+                    // }
+
                     // is it an index or a stock?
                     if (!transaction.metadata.isIndex ) {
                         stockOptions.push(transaction);
                     } else {
                         indexOptions.push(transaction);
                     }
-
                     continue;
                 }
 
-                // if (currentPair === actionsForPair) {
+                // --> option types are the same
 
-                // CHECK: if both types are the same:
-                // both should be P or C
-
-                if (transaction.metadata.optionType != nextTransaction.metadata.optionType) {
-                    // if (config.debug) {
-                    //     console.info (" not a pair: TYPE does not match");
-                    // }
-
-                    // store the transaction and move on
-                    if (!transaction.metadata.isIndex ) {
-                        stockOptions.push(transaction);
-                    } else {
-                        indexOptions.push(transaction);
-                    }
-                    continue;
-                }
 
                 // CHECK: if both QUANTITY are the same
-                // note: need to coerce the quantity to number, not string
+                // note: "+" coerces the quantity from string to number, allowing comparison
                 if (+transaction.row["Quantity"] != +nextTransaction.row["Quantity"]) {
+                    // QUANTITIES do not match
+                    // so: save the transaction and move on
+
                     // if (config.debug) {
                     //     console.info (" not a pair: QUANTITY does not match");
                     // }
 
-                    // debugger;
-                    // store the transaction and move on
+                    // is it an index or a stock?
                     if (!transaction.metadata.isIndex ) {
                         stockOptions.push(transaction);
                     } else {
@@ -1192,13 +1192,67 @@ export function processTransactions(rows) {
                     continue;
                 }
 
+                // at this point: MIGHT be a pair
+                // need to check:
+                // can only be a roll if the actions are a PAIR & dates are different
 
+                    // could it be a ROLL?
+                    // identify: a roll
+                    // - same symbol
+                    // - different expiration
+                    // - same quantity
+                    // - one of each action: "Buy to close" + "Sell to open"
+
+                    let isRoll = false;
+                    let isSpread = false;
+
+                    const actionCurrent = transaction.row["Action"].toLowerCase();
+                    const actionNext = nextTransaction.row["Action"].toLowerCase();
+                    if (actionCurrent === "buy to close" || actionNext === "buy to close") {
+                        if (actionCurrent === "sell to open" || actionNext === "sell to open") {
+
+                            // maybe a roll?
+
+                            isRoll = true;
+
+                            transaction.metadata["roll"] = "roll?";
+                            nextTransaction.metadata["roll"] = "roll?";
+
+                            if (config.debug) {
+                                transaction.row["roll"] = " R? ";
+                                nextTransaction.row["roll"] = " R? ";
+                            }
+                        }
+                    }
+
+                    // could it be a SPREAD?
                     // identify: a spread
-                    // = a pair,
                     // - same symbol
                     // - same expiration date
                     // - different strike
                     // - one of each action: Buy + Sell
+
+                    const expirationCurrent = transaction.metadata["expirationDate"].getTime();
+                    const expirationNext = nextTransaction.metadata["expirationDate"].getTime();
+                    if (expirationCurrent === expirationNext) {
+
+                        isSpread = true;
+                    }
+
+                    if (!isSpread && !isRoll) {
+                        // PROBABLY not either
+                        // so: save the transaction and move on
+
+                         console.info (" not a pair - neither a spread nor a roll.");
+                        // is it an index or a stock?
+                        if (!transaction.metadata.isIndex ) {
+                            stockOptions.push(transaction);
+                        } else {
+                            indexOptions.push(transaction);
+                        }
+                        continue;
+
+                    }
 
                     // WHOOO!
                     // console.log("PAIR found!");
@@ -1216,27 +1270,6 @@ export function processTransactions(rows) {
                     // increment the pairID for next pair
                     pairID++;
 
-                    // could it be a ROLL?
-                    // identify: a roll
-                    // - same symbol
-                    // - different expiration
-                    // - same quantity
-                    // - one of each action: Buy to close + Sell (to open)
-
-                    const action0 = transaction.row["Action"].toLowerCase();
-                    const action1 = nextTransaction.row["Action"].toLowerCase();
-                    if (action0 === "buy to close" || action1 === "buy to close") {
-                        if (action0 === "sell to open" || action1 === "sell to open") {
-
-                            transaction.metadata["roll"] = "roll?";
-                            nextTransaction.metadata["roll"] = "roll?";
-
-                            if (config.debug) {
-                                transaction.row["roll"] = " R? ";
-                                nextTransaction.row["roll"] = " R? ";
-                            }
-                        }
-                    }
 
 
                     // are they in the right order: BUY-SELL?
@@ -1272,7 +1305,7 @@ export function processTransactions(rows) {
                     continue;
                 // }
             // }
-        }
+        // }
     }
 
     // done sorting/grouping the transactions out
@@ -1343,13 +1376,17 @@ export function processTransactions(rows) {
     // writeJSON("stocks", stockOptions);
     // writeJSON("indexes", indexOptions);
 
+    // DISPLAY STATISTICS
+
+
+
 
     // now all the "option" transactions are processed and grouped
     // calculate the sum of the amounts
-    const sumByDay = calculateDailySums(groupedRows["option"]);
+    calculateDailySums(groupedRows["option"]);
 
-    const sum = calculateTransactionsSum(groupedRows["option"]);
-    displayFormattedSum( {label: "SUM - OPTIONS", num: sum});
+    const sumTotal = calculateTransactionsSum(groupedRows["option"]);
+    displayFormattedSum( {label: "SUM - OPTIONS", num: sumTotal});
 
     const sortedRows = [];
 
