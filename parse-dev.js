@@ -286,10 +286,9 @@ function unparseCSVFile (data) {
 /**
  * define columns to include in csv data with debug mode
  */
-
-const debugColumnPair = "pairID";
-const debugColumnFractionalPriceFlag = "fract";
-const debugColumnRollFlag = "roll";
+const debugColumnPair = "pairID";  // ID# for identifying pairs
+const debugColumnFractionalPriceFlag = "fract";  // flag if amount is fractional
+const debugColumnRollFlag = "roll";  // flag if transactions are a roll
 
 const debugColumns = [
     debugColumnPair,
@@ -326,6 +325,7 @@ const getColumnHeaders = (row) => {
  */
 const amountFormat = new Intl.NumberFormat("en", {
     minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
     trailingZeroDisplay: "auto",
 });
 
@@ -342,7 +342,6 @@ const transactionAmountFormat = (n) => amountFormat.format(n);
  * @returns {number}
  */
 const transactionQuantityFormat = (n) => {}
-
 
 /**
  * does the number passed in have any decimals?
@@ -364,18 +363,18 @@ const transactionHasAmount = (transaction) => {
 }
 
 /**
- *
+ * regex used to determine if the transaction is an option transaction
  */
-// original regex = /[A-Za-z]+\s\d\d\/\d\d\/\d\d\d\d\s[0-9]*\.[0-9]+\s[A-Z]/i;
-const OptionTransactionSymbolRegex = /[A-Za-z]+\s\d\d\/\d\d\/\d\d\d\d\s[0-9]*\.[0-9]+\s[PC]/i;
-// const OptionTransactionSymbolRegexShort = /[A-Za-z]+\s\d\d\/\d\d\/\d\d\d\d\s/i;
+// original regex = /[A-Za-z]+\s\d\d\/\d\d\/\d\d\d\d\s[0-9]*\.[0-9]+\s[A-Z]/i;  // verbose version
+const OptionTransactionSymbolRegex = /[A-Za-z]+\s\d\d\/\d\d\/\d\d\d\d\s[0-9]*\.[0-9]+\s[PC]/i;  // slightly more specific version
+// const OptionTransactionSymbolRegexShort = /[A-Za-z]+\s\d\d\/\d\d\/\d\d\d\d\s/i;  // shorter
 
 /**
  * given a transaction symbol string/phrase,
  * determine if it is an option transaction of the format:
  * [symbol] [space] [date] [space] [underlying price] [space] [type]
- * @param {*} optionSymbol
- * @returns
+ * @param {string} optionSymbol
+ * @returns {boolean}
  */
 const isOptionTransaction = (optionSymbol) => OptionTransactionSymbolRegex.test(optionSymbol);
 
@@ -390,7 +389,7 @@ const isIndexTransaction = (stockSymbol) => indexSymbols.has(stockSymbol);
 
 /**
  * given a type from an option symbol - P or C -
- * is it a PUT or a CALL?
+ * get the full type name
  * @param {string} type
  * @returns {string}
  */
@@ -674,7 +673,6 @@ const displayFormattedSum = ({label, num, color="green"}) => {
     console.log (colorize[color](label + ": " + "\t" + displayNum));
 }
 
-
 /**
  * display a tabulated label and quantity
  * @param {string} label
@@ -697,10 +695,9 @@ const displayLabeledAmount = ({label, num, color="green"}) => {
     const formattedNum = transactionAmountFormat(num);
     // const displayNum = hasDecimal(num) ? (num > 0 ? " " : "") + num : num;
     const displayNum = num > 0 ? " " + formattedNum : formattedNum;
-    const displayString = label + ": " + "\t" + displayNum;
+    const displayString = label + ": " + "\t" + displayNum.toString().padStart(9);
     console.log (colorize[color](displayString))
 }
-
 
 /**
  * go thru each transaction,
@@ -765,7 +762,6 @@ function calculateDailySums (transactions) {
     console.log ();
 }
 
-
 /**
  * go through all the transactions
  * and group them by transaction date
@@ -810,10 +806,10 @@ function organizeTransactionsbyDate (rows) {
     return dateGroups;
 }
 
-
-// within a group of options,
-// sequence them by expiration date
-
+/**
+ * within a group of options,
+ * sequence them by expiration date
+ */
 function sequenceTransactionsByExpiration () {
     for (const index of Object.keys(indexGroups)) {
 
@@ -871,7 +867,6 @@ function sequenceTransactionsByExpiration () {
 
     }
 }
-
 
 
 /**
@@ -1354,11 +1349,9 @@ function processTransactions(rows) {
         indexGroups[indexSymbol].push(...groupedRows);
     }
 
-
     // put all the index options back together
     const sortedIndexOptions = [];
     Object.keys(indexGroups).forEach((indexSymbol) => {
-        // const group = indexGroups[indexSymbol];
         sortedIndexOptions.push(...makeBlankRows(3));
         sortedIndexOptions.push(...indexGroups[indexSymbol]);
     });
@@ -1377,7 +1370,6 @@ function processTransactions(rows) {
     // writeJSON("indexes", indexOptions);
 
     // DISPLAY STATISTICS
-
 
 
 
